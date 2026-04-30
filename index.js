@@ -5,74 +5,89 @@ const axios = require("axios");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
 
 let countdown = 60;
-let users = 0;
+let isFrozen = false;
 
-let red = 0;
-let green = 0;
-let purple = 0;
+let userCount = 0;
+let red = 0, green = 0, purple = 0;
 
-let history = [];
+let lastNumbers = [];
 
-async function getETHPrice() {
-    try {
-        const res = await axios.get("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT");
-        return parseFloat(res.data.price);
-    } catch {
-        return 2000 + Math.random() * 1000;
-    }
+async function getEthLastDigit() {
+  try {
+    const res = await axios.get("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT");
+    const price = res.data.price; // مثال: 2346.79
+    const lastDigit = price[price.length - 1]; // 9
+    return { price, digit: lastDigit };
+  } catch (e) {
+    return { price: "0.00", digit: "0" };
+  }
 }
 
-function gameLoop() {
-    setInterval(async () => {
+setInterval(async () => {
 
-        if (countdown > 0) {
-            countdown--;
+  countdown--;
 
-            users += Math.floor(Math.random() * 50);
+  // 🔥 عند 20 وقف التحديث
+  if (countdown === 20) {
+    isFrozen = true;
+  }
 
-            red += Math.random() * 500;
-            green += Math.random() * 500;
-            purple += Math.random() * 500;
+  // تحديث فقط إذا ليس متوقف
+  if (!isFrozen) {
+    userCount += Math.floor(Math.random() * 100) + 50;
 
-            io.emit("update", {
-                countdown,
-                users,
-                red,
-                green,
-                purple
-            });
+    red += Math.floor(Math.random() * 500);
+    green += Math.floor(Math.random() * 500);
+    purple += Math.floor(Math.random() * 500);
+  }
 
-        } else {
-            let price = await getETHPrice();
-            let lastDigit = Math.floor(price * 100) % 10;
+  // نهاية الجولة
+  if (countdown <= 0) {
 
-            history.unshift(lastDigit);
-            if (history.length > 20) history.pop();
+    const eth = await getEthLastDigit();
 
-            io.emit("result", {
-                number: lastDigit,
-                history
-            });
+    lastNumbers.unshift(eth.digit);
+    if (lastNumbers.length > 20) lastNumbers.pop();
 
-            countdown = 60;
-            users = 1000 + Math.random() * 5000;
-            red = 0;
-            green = 0;
-            purple = 0;
-        }
+    io.emit("result", {
+      digit: eth.digit,
+      price: eth.price,
+      history: lastNumbers
+    });
 
-    }, 1000);
-}
+    // reset
+    countdown = 60;
+    isFrozen = false;
+    userCount = 0;
+    red = 0;
+    green = 0;
+    purple = 0;
+  }
+
+  // إرسال البيانات
+  io.emit("update", {
+    countdown,
+    userCount,
+    red,
+    green,
+    purple
+  });
+
+}, 1000);
 
 io.on("connection", (socket) => {
-    console.log("User connected");
+  console.log("User connected");
+});
+
+app.get("/", (req, res) => {
+  res.send("ETH Game Server Running 🚀");
 });
 
 server.listen(3000, () => {
-    console.log("Server running on port 3000");
+  console.log("Server running on port 3000");
 });
-
-gameLoop();
