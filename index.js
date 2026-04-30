@@ -5,9 +5,7 @@ const axios = require("axios");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
 let countdown = 60;
 let isFrozen = false;
@@ -17,27 +15,31 @@ let red = 0, green = 0, purple = 0;
 
 let lastNumbers = [];
 
-async function getEthLastDigit() {
+// 🔥 متغير عالمي للسعر
+let currentPrice = "0.00";
+
+// ✅ تحديث السعر كل ثانية
+async function updateEthPrice() {
   try {
     const res = await axios.get("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT");
-    const price = res.data.price; // مثال: 2346.79
-    const lastDigit = price[price.length - 1]; // 9
-    return { price, digit: lastDigit };
+    currentPrice = res.data.price;
   } catch (e) {
-    return { price: "0.00", digit: "0" };
+    console.log("ETH API Error");
   }
 }
 
+// تحديث السعر كل ثانية
+setInterval(updateEthPrice, 1000);
+
+// 🎮 اللعبة
 setInterval(async () => {
 
   countdown--;
 
-  // 🔥 عند 20 وقف التحديث
   if (countdown === 20) {
     isFrozen = true;
   }
 
-  // تحديث فقط إذا ليس متوقف
   if (!isFrozen) {
     userCount += Math.floor(Math.random() * 100) + 50;
 
@@ -46,21 +48,21 @@ setInterval(async () => {
     purple += Math.floor(Math.random() * 500);
   }
 
-  // نهاية الجولة
+  // 🔥 عند انتهاء الجولة
   if (countdown <= 0) {
 
-    const eth = await getEthLastDigit();
+    // استخراج آخر رقم من السعر
+    let lastDigit = currentPrice.toString().slice(-1);
 
-    lastNumbers.unshift(eth.digit);
+    lastNumbers.unshift(lastDigit);
     if (lastNumbers.length > 20) lastNumbers.pop();
 
     io.emit("result", {
-      digit: eth.digit,
-      price: eth.price,
+      digit: lastDigit,
+      price: currentPrice,
       history: lastNumbers
     });
 
-    // reset
     countdown = 60;
     isFrozen = false;
     userCount = 0;
@@ -69,25 +71,22 @@ setInterval(async () => {
     purple = 0;
   }
 
-  // إرسال البيانات
+  // 🔥 إرسال التحديث كل ثانية (السعر مضاف هنا)
   io.emit("update", {
     countdown,
     userCount,
     red,
     green,
-    purple
+    purple,
+    price: currentPrice // 🔥 مهم جداً
   });
 
 }, 1000);
 
-io.on("connection", (socket) => {
-  console.log("User connected");
-});
-
 app.get("/", (req, res) => {
-  res.send("ETH Game Server Running 🚀");
+  res.send("Server Working 🚀");
 });
 
 server.listen(3000, () => {
-  console.log("Server running on port 3000");
+  console.log("Server running...");
 });
