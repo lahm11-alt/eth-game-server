@@ -22,16 +22,18 @@ let currentPrice = "0.00";
 async function updateEthPrice() {
   try {
     const res = await axios.get(
-      "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
       { timeout: 3000 }
     );
 
-    currentPrice = res.data.price;
+    if (res.data && res.data.ethereum) {
+      currentPrice = res.data.ethereum.usd.toString();
 
-    console.log("ETH PRICE:", currentPrice); // 🔥 راقب هذا
+      console.log("ETH PRICE:", currentPrice);
+    }
 
   } catch (e) {
-    console.log("ETH ERROR:", e.message);
+    console.log("COINGECKO ERROR:", e.message);
   }
 }
 
