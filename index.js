@@ -7,6 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+// 🎮 بيانات اللعبة
 let countdown = 60;
 let isFrozen = false;
 
@@ -15,37 +16,51 @@ let red = 0, green = 0, purple = 0;
 
 let lastNumbers = [];
 
-// 🔥 السعر
+// 💰 السعر
 let currentPrice = "0.00";
+let lastRealPrice = 0;
 
-// ✅ جلب السعر (مع طباعة للتأكد)
-async function updateEthPrice() {
+// =========================
+// 🔥 جلب السعر الحقيقي كل 5 ثواني
+// =========================
+async function fetchRealPrice() {
   try {
     const res = await axios.get(
-      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-      { timeout: 3000 }
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
     );
 
-    if (res.data && res.data.ethereum) {
-      currentPrice = res.data.ethereum.usd.toString();
+    lastRealPrice = res.data.ethereum.usd;
 
-      console.log("ETH PRICE:", currentPrice);
-    }
+    console.log("REAL PRICE:", lastRealPrice);
 
   } catch (e) {
-    console.log("COINGECKO ERROR:", e.message);
+    console.log("API ERROR:", e.message);
   }
 }
 
-// 🔥 مهم جداً (تشغيل فوري)
-updateEthPrice();
+setInterval(fetchRealPrice, 5000);
+fetchRealPrice();
 
-// 🔥 تحديث مستمر
-setInterval(updateEthPrice, 1000);
+// =========================
+// 🔥 تحريك السعر كل ثانية (وهمي)
+// =========================
+setInterval(() => {
 
+  if (lastRealPrice > 0) {
 
-// 🎮 اللعبة
-setInterval(async () => {
+    let move = (Math.random() * 4 - 2); // حركة +/- 2 دولار
+
+    let newPrice = lastRealPrice + move;
+
+    currentPrice = newPrice.toFixed(2);
+  }
+
+}, 1000);
+
+// =========================
+// 🎮 منطق اللعبة
+// =========================
+setInterval(() => {
 
   countdown--;
 
@@ -61,6 +76,7 @@ setInterval(async () => {
     purple += Math.floor(Math.random() * 500);
   }
 
+  // 🔥 نهاية الجولة
   if (countdown <= 0) {
 
     let lastDigit = currentPrice.toString().slice(-1);
@@ -74,6 +90,7 @@ setInterval(async () => {
       history: lastNumbers
     });
 
+    // إعادة تعيين
     countdown = 60;
     isFrozen = false;
     userCount = 0;
@@ -82,7 +99,7 @@ setInterval(async () => {
     purple = 0;
   }
 
-  // 🔥 إرسال السعر
+  // 🔥 تحديث مباشر
   io.emit("update", {
     countdown,
     userCount,
@@ -93,6 +110,8 @@ setInterval(async () => {
   });
 
 }, 1000);
+
+// =========================
 
 app.get("/", (req, res) => {
   res.send("Server Working 🚀");
