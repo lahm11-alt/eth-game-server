@@ -15,21 +15,32 @@ let red = 0, green = 0, purple = 0;
 
 let lastNumbers = [];
 
-// 🔥 متغير عالمي للسعر
+// 🔥 السعر
 let currentPrice = "0.00";
 
-// ✅ تحديث السعر كل ثانية
+// ✅ جلب السعر (مع طباعة للتأكد)
 async function updateEthPrice() {
   try {
-    const res = await axios.get("https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT");
+    const res = await axios.get(
+      "https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT",
+      { timeout: 3000 }
+    );
+
     currentPrice = res.data.price;
+
+    console.log("ETH PRICE:", currentPrice); // 🔥 راقب هذا
+
   } catch (e) {
-    console.log("ETH API Error");
+    console.log("ETH ERROR:", e.message);
   }
 }
 
-// تحديث السعر كل ثانية
+// 🔥 مهم جداً (تشغيل فوري)
+updateEthPrice();
+
+// 🔥 تحديث مستمر
 setInterval(updateEthPrice, 1000);
+
 
 // 🎮 اللعبة
 setInterval(async () => {
@@ -48,10 +59,8 @@ setInterval(async () => {
     purple += Math.floor(Math.random() * 500);
   }
 
-  // 🔥 عند انتهاء الجولة
   if (countdown <= 0) {
 
-    // استخراج آخر رقم من السعر
     let lastDigit = currentPrice.toString().slice(-1);
 
     lastNumbers.unshift(lastDigit);
@@ -71,14 +80,14 @@ setInterval(async () => {
     purple = 0;
   }
 
-  // 🔥 إرسال التحديث كل ثانية (السعر مضاف هنا)
+  // 🔥 إرسال السعر
   io.emit("update", {
     countdown,
     userCount,
     red,
     green,
     purple,
-    price: currentPrice // 🔥 مهم جداً
+    price: currentPrice
   });
 
 }, 1000);
